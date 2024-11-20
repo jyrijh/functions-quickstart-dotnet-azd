@@ -120,6 +120,7 @@ module cachePrivateEndpoint 'app/cache-Privatendpoint.bicep' = if (!skipVnet) {
     subnetName: skipVnet ? '' : serviceVirtualNetwork.outputs.peSubnetName
     resourceName: cacheServerName
   }
+  dependsOn: [redisCache]
 }
 
 // Virtual Network & private endpoint to blob storage

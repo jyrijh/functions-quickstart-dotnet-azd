@@ -20,7 +20,7 @@ namespace Company.Function
         public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req,
             [FromBody] Person person)
         {
-            _logger.LogInformation($"C# HTTP POST trigger function processed a request for url {req.Body}");
+            _logger.LogInformation("C# HTTP POST trigger function processed a request for url {body}", req.Body);
 
             if (string.IsNullOrEmpty(person.Name) | string.IsNullOrEmpty(person.Age.ToString()) | person.Age == 0)
             {
@@ -30,7 +30,7 @@ namespace Company.Function
 
             var returnValue = $"Hello, {person.Name}! You are {person.Age} years old.";
             
-            _logger.LogInformation($"C# HTTP POST trigger function processed a request for {person.Name} who is {person.Age} years old.");
+            _logger.LogInformation("C# HTTP POST trigger function processed a request for {Name} who is {Age} years old.", person.Name, person.Age);
             return new OkObjectResult(returnValue);
         }
     }

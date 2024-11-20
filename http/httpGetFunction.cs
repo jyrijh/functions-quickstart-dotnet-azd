@@ -25,7 +25,7 @@ namespace Company.Function
             try {
                 if(await _cache.GetStringAsync(name) is string cachedValue)
                 {
-                    _logger.LogInformation($"C# HTTP trigger function processed a request for {cachedValue} from cache.");
+                    _logger.LogInformation("C# HTTP trigger function processed a request for {name} from cache.", name);
                     return new OkObjectResult(cachedValue);
                 }
 
@@ -35,7 +35,7 @@ namespace Company.Function
 
                 await _cache.SetStringAsync(name, returnValue);
     
-                _logger.LogInformation($"C# HTTP trigger function processed a request for {returnValue}.");
+                _logger.LogInformation("C# HTTP trigger function processed a request for {name}.", name);
     
                 return new OkObjectResult(returnValue);
             }

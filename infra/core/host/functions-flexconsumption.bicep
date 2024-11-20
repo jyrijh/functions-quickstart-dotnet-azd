@@ -23,6 +23,7 @@ param kind string = 'functionapp,linux'
 
 // Microsoft.Web/sites/config
 param appSettings object = {}
+param connectionStrings object = {}
 param instanceMemoryMB int = 2048
 param maximumInstanceCount int = 100
 param deploymentStorageContainerName string
@@ -74,6 +75,14 @@ resource functions 'Microsoft.Web/sites@2023-12-01' = {
         AzureWebJobsStorage__accountName: stg.name
         AzureWebJobsStorage__credential : 'managedidentity'
         APPLICATIONINSIGHTS_CONNECTION_STRING: applicationInsights.properties.ConnectionString
+      })
+  }
+  
+  resource connectionstrings 'config' = {
+    name:'connectionstrings'
+    properties: union(connectionStrings,
+      {
+        
       })
   }
 }

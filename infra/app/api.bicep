@@ -4,6 +4,7 @@ param tags object = {}
 param applicationInsightsName string = ''
 param appServicePlanId string
 param appSettings object = {}
+param connectionStrings object = {}
 param runtimeName string 
 param runtimeVersion string 
 param serviceName string = 'api'
@@ -30,6 +31,7 @@ module api '../core/host/functions-flexconsumption.bicep' = {
         AzureWebJobsStorage__clientId : identityClientId
         APPLICATIONINSIGHTS_AUTHENTICATION_STRING: applicationInsightsIdentity
       })
+    connectionStrings: connectionStrings
     applicationInsightsName: applicationInsightsName
     appServicePlanId: appServicePlanId
     runtimeName: runtimeName

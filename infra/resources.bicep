@@ -42,6 +42,72 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   }
 }
 
+var cachePrivateDNSZoneName = 'privatelink.redis.cache.azure.net' //format('privatelink.redis.{0}', environment().suffixes.storage)
+var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink' //format('{0}-link-{1}', resourceName, take(toLower(uniqueString(resourceName, virtualNetworkName)), 4))
+
+resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: cachePrivateDNSZoneName
+  location: 'global'
+  tags: tags
+  dependsOn:[
+    serviceVirtualNetwork
+    redisCache
+  ]
+}
+
+resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: cachePrivateDnsZone
+  name: cachePrivateDnsZoneVirtualNetworkLinkName
+  location: 'global'
+  tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: serviceVirtualNetwork.outputs.vNetId
+    }
+  }
+}
+
+resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
+  name: 'cache-private-endpoint' //cachePrivateEndpointName
+  location: location
+  properties: {
+    privateLinkServiceConnections: [
+      {
+        name: 'cachePrivateLinkConnection' //cachePrivateEndpointName
+        properties: {
+          privateLinkServiceId: redisCache.id
+          groupIds: [
+            'redisCache'
+          ]
+        }
+      }
+    ]
+    subnet: {
+      id: '${serviceVirtualNetwork.outputs.vNetId}/subnets/${serviceVirtualNetwork.outputs.peSubnetName}'
+    }
+  }
+  dependsOn: [
+    cachePrivateDnsZone
+    privateDnsZoneLinkCache
+  ]
+}
+
+resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
+  parent: cachePrivateEndpoint
+  name: 'cachePrivateDnsZoneGroup'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'cacheARecord'
+        properties: {
+          privateDnsZoneId: cachePrivateDnsZone.id
+        }
+      }
+    ]
+  }
+}
+
 module api './app/api.bicep' = {
   name: 'api'
   params: {
@@ -96,6 +162,16 @@ module storageRoleAssignmentApi 'app/storage-Access.bicep' = {
   }
 }
 
+// Virtual Network & private endpoint to blob storage
+module serviceVirtualNetwork 'app/vnet.bicep' =  if (!skipVnet) {
+  name: 'serviceVirtualNetwork'
+  params: {
+    location: location
+    tags: tags
+    vNetName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
+  }
+}
+
 resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
   name: cacheServerName
   location:location
@@ -111,27 +187,32 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
   }
 }
 
-module cachePrivateEndpoint 'app/cache-Privatendpoint.bicep' = if (!skipVnet) {
-  name: 'cachePrivateEndpoint'
-  params: {
-    location: location
-    tags: tags
-    virtualNetworkName: '${abbrs.networkVirtualNetworks}${resourceToken}'
-    subnetName: skipVnet ? '' : serviceVirtualNetwork.outputs.peSubnetName
-    resourceName: cacheServerName
-  }
-  dependsOn: [redisCache]
-}
+// module cachePrivateEndpoint 'app/cache-Privatendpoint.bicep' = if (!skipVnet) {
+//   name: 'cachePrivateEndpoint'
+//   params: {
+//     location: location
+//     tags: tags
+//     virtualNetworkName: '${abbrs.networkVirtualNetworks}${resourceToken}'
+//     subnetName: skipVnet ? '' : serviceVirtualNetwork.outputs.peSubnetName
+//     resourceName: cacheServerName
+//   }
+//   //dependsOn: [redisCache]
+// }
 
-// Virtual Network & private endpoint to blob storage
-module serviceVirtualNetwork 'app/vnet.bicep' =  if (!skipVnet) {
-  name: 'serviceVirtualNetwork'
-  params: {
-    location: location
-    tags: tags
-    vNetName: !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
-  }
-}
+// resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
+//   name: cacheServerName
+//   location:location
+//   properties:{
+//     sku:{
+//       capacity: 0
+//       family: 'C'
+//       name: 'Basic'
+//     }
+//     enableNonSslPort:false
+//     redisVersion:'6'
+//     publicNetworkAccess:'Enabled'
+//   }
+// }
 
 module storagePrivateEndpoint 'app/storage-PrivateEndpoint.bicep' = if (!skipVnet) {
   name: 'servicePrivateEndpoint'

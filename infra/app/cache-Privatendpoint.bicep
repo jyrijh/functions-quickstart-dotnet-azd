@@ -18,9 +18,9 @@ resource vnet 'Microsoft.Network/virtualNetworks@2021-08-01' existing = {
   name: virtualNetworkName
 }
 
-resource redisCache 'Microsoft.Cache/redis@2023-08-01' existing = {
-  name: resourceName
-}
+// resource redisCache 'Microsoft.Cache/redis@2023-08-01' existing = {
+//   name: resourceName
+// }
 
 var cachePrivateDNSZoneName = 'privatelink.redis.cache.azure.net' //format('privatelink.redis.{0}', environment().suffixes.storage)
 var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink' //format('{0}-link-{1}', resourceName, take(toLower(uniqueString(resourceName, virtualNetworkName)), 4))
@@ -31,6 +31,7 @@ resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   tags: tags
   dependsOn:[
     vnet
+    redisCache // If not here we get: "Deployment Error Details: ResourceNotFound"
   ]
 }
 
@@ -66,6 +67,10 @@ resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = 
       id: '${vnet.id}/subnets/${subnetName}'
     }
   }
+  dependsOn: [
+    cachePrivateDnsZone
+    privateDnsZoneLinkCache
+  ]
 }
 
 resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
@@ -80,5 +85,20 @@ resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDns
         }
       }
     ]
+  }
+}
+
+resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
+  name: resourceName
+  location:location
+  properties:{
+    sku:{
+      capacity: 0
+      family: 'C'
+      name: 'Basic'
+    }
+    enableNonSslPort:false
+    redisVersion:'6'
+    publicNetworkAccess:'Enabled'
   }
 }

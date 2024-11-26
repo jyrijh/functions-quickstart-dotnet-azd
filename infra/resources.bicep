@@ -42,16 +42,16 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   }
 }
 
-var cachePrivateDNSZoneName = 'privatelink.redis.cache.windows.net' //format('privatelink.redis.{0}', environment().suffixes.storage)
-var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink' //format('{0}-link-{1}', resourceName, take(toLower(uniqueString(resourceName, virtualNetworkName)), 4))
+var cachePrivateDNSZoneName = 'privatelink.redis.cache.windows.net'
+var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink'
 
 resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
-  name: 'cache-private-endpoint' //cachePrivateEndpointName
+  name: 'cache-private-endpoint'
   location: location
   properties: {
     privateLinkServiceConnections: [
       {
-        name: 'cachePrivateLinkConnection' //cachePrivateEndpointName
+        name: 'cachePrivateLinkConnection'
         properties: {
           privateLinkServiceId: redisCache.id
           groupIds: [
@@ -70,17 +70,12 @@ resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: cachePrivateDNSZoneName
   location: 'global'
   tags: tags
-  // dependsOn:[
-  //   serviceVirtualNetwork
-  //   //redisCache
-  // ]
 }
 
 resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
   parent: cachePrivateDnsZone
   name: cachePrivateDnsZoneVirtualNetworkLinkName
   location: 'global'
-  //tags: tags
   properties: {
     registrationEnabled: false
     virtualNetwork: {
@@ -88,8 +83,6 @@ resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetwo
     }
   }
 }
-
-
 
 resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
   parent: cachePrivateEndpoint
@@ -184,36 +177,8 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
     }
     enableNonSslPort:false
     redisVersion:'6'
-    //publicNetworkAccess:'Enabled'
   }
 }
-
-// module cachePrivateEndpoint 'app/cache-Privatendpoint.bicep' = if (!skipVnet) {
-//   name: 'cachePrivateEndpoint'
-//   params: {
-//     location: location
-//     tags: tags
-//     virtualNetworkName: '${abbrs.networkVirtualNetworks}${resourceToken}'
-//     subnetName: skipVnet ? '' : serviceVirtualNetwork.outputs.peSubnetName
-//     resourceName: cacheServerName
-//   }
-//   //dependsOn: [redisCache]
-// }
-
-// resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
-//   name: cacheServerName
-//   location:location
-//   properties:{
-//     sku:{
-//       capacity: 0
-//       family: 'C'
-//       name: 'Basic'
-//     }
-//     enableNonSslPort:false
-//     redisVersion:'6'
-//     publicNetworkAccess:'Enabled'
-//   }
-// }
 
 module storagePrivateEndpoint 'app/storage-PrivateEndpoint.bicep' = if (!skipVnet) {
   name: 'servicePrivateEndpoint'

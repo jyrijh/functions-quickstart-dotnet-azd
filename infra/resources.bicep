@@ -51,7 +51,7 @@ resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   tags: tags
   dependsOn:[
     serviceVirtualNetwork
-    redisCache
+    //redisCache
   ]
 }
 
@@ -59,7 +59,7 @@ resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetwo
   parent: cachePrivateDnsZone
   name: cachePrivateDnsZoneVirtualNetworkLinkName
   location: 'global'
-  tags: tags
+  //tags: tags
   properties: {
     registrationEnabled: false
     virtualNetwork: {
@@ -87,26 +87,22 @@ resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = 
       id: '${serviceVirtualNetwork.outputs.vNetId}/subnets/${serviceVirtualNetwork.outputs.peSubnetName}'
     }
   }
-  dependsOn: [
-    cachePrivateDnsZone
-    privateDnsZoneLinkCache
-  ]
-}
-
-resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
-  parent: cachePrivateEndpoint
-  name: 'cachePrivateDnsZoneGroup'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'cacheARecord'
-        properties: {
-          privateDnsZoneId: cachePrivateDnsZone.id
+  resource cachePvtEndpointDnsGroup 'privateDnsZoneGroups' = {
+    name: 'cachePrivateDnsZoneGroup'
+    properties: {
+      privateDnsZoneConfigs: [
+        {
+          name: 'cacheARecord'
+          properties: {
+            privateDnsZoneId: cachePrivateDnsZone.id
+          }
         }
-      }
-    ]
+      ]
+    }
   }
 }
+
+
 
 module api './app/api.bicep' = {
   name: 'api'
@@ -183,7 +179,7 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
     }
     enableNonSslPort:false
     redisVersion:'6'
-    publicNetworkAccess:'Enabled'
+    //publicNetworkAccess:'Enabled'
   }
 }
 

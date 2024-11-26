@@ -42,64 +42,15 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   }
 }
 
-var cachePrivateDNSZoneName = 'privatelink.redis.cache.windows.net'
-var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink'
-
-resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
-  name: 'cache-private-endpoint'
-  location: location
-  properties: {
-    privateLinkServiceConnections: [
-      {
-        name: 'cachePrivateLinkConnection'
-        properties: {
-          privateLinkServiceId: redisCache.id
-          groupIds: [
-            'redisCache'
-          ]
-        }
-      }
-    ]
-    subnet: {
-      id: '${serviceVirtualNetwork.outputs.vNetId}/subnets/${serviceVirtualNetwork.outputs.peSubnetName}'
-    }
+module cachePrivateEndpoint './app/cache-Privatendpoint.bicep' = if (!skipVnet) {
+  name: 'cachePrivateEndpoint'
+  params: {
+    location: location
+    tags: tags
+    subnetName: skipVnet ? '' : serviceVirtualNetwork.outputs.peSubnetName
+    resourceName: redisCache.name
+    virtualNetworkName: skipVnet ? '' : !empty(vNetName) ? vNetName : '${abbrs.networkVirtualNetworks}${resourceToken}'
   }
-}
-
-resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: cachePrivateDNSZoneName
-  location: 'global'
-  tags: tags
-}
-
-resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: cachePrivateDnsZone
-  name: cachePrivateDnsZoneVirtualNetworkLinkName
-  location: 'global'
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: serviceVirtualNetwork.outputs.vNetId
-    }
-  }
-}
-
-resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
-  parent: cachePrivateEndpoint
-  name: 'cachePrivateDnsZoneGroup'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'privatelink-redis-cache-windows-net'
-        properties: {
-          privateDnsZoneId: cachePrivateDnsZone.id
-        }
-      }
-    ]
-  }
-  dependsOn: [
-    privateDnsZoneLinkCache
-  ]
 }
 
 module api './app/api.bicep' = {
@@ -177,6 +128,7 @@ resource redisCache 'Microsoft.Cache/redis@2023-08-01' = {
     }
     enableNonSslPort:false
     redisVersion:'6'
+    publicNetworkAccess: !skipVnet ? 'Disabled' : 'Enabled'
   }
 }
 

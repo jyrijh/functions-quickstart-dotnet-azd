@@ -42,31 +42,8 @@ module appServicePlan './core/host/appserviceplan.bicep' = {
   }
 }
 
-var cachePrivateDNSZoneName = 'privatelink.redis.cache.azure.net' //format('privatelink.redis.{0}', environment().suffixes.storage)
+var cachePrivateDNSZoneName = 'privatelink.redis.cache.windows.net' //format('privatelink.redis.{0}', environment().suffixes.storage)
 var cachePrivateDnsZoneVirtualNetworkLinkName = 'privatelink.redis.cache.azure.net-applink' //format('{0}-link-{1}', resourceName, take(toLower(uniqueString(resourceName, virtualNetworkName)), 4))
-
-resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
-  name: cachePrivateDNSZoneName
-  location: 'global'
-  tags: tags
-  dependsOn:[
-    serviceVirtualNetwork
-    //redisCache
-  ]
-}
-
-resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
-  parent: cachePrivateDnsZone
-  name: cachePrivateDnsZoneVirtualNetworkLinkName
-  location: 'global'
-  //tags: tags
-  properties: {
-    registrationEnabled: false
-    virtualNetwork: {
-      id: serviceVirtualNetwork.outputs.vNetId
-    }
-  }
-}
 
 resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = {
   name: 'cache-private-endpoint' //cachePrivateEndpointName
@@ -87,22 +64,50 @@ resource cachePrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-05-01' = 
       id: '${serviceVirtualNetwork.outputs.vNetId}/subnets/${serviceVirtualNetwork.outputs.peSubnetName}'
     }
   }
-  resource cachePvtEndpointDnsGroup 'privateDnsZoneGroups' = {
-    name: 'cachePrivateDnsZoneGroup'
-    properties: {
-      privateDnsZoneConfigs: [
-        {
-          name: 'cacheARecord'
-          properties: {
-            privateDnsZoneId: cachePrivateDnsZone.id
-          }
-        }
-      ]
+}
+
+resource cachePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: cachePrivateDNSZoneName
+  location: 'global'
+  tags: tags
+  // dependsOn:[
+  //   serviceVirtualNetwork
+  //   //redisCache
+  // ]
+}
+
+resource privateDnsZoneLinkCache 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: cachePrivateDnsZone
+  name: cachePrivateDnsZoneVirtualNetworkLinkName
+  location: 'global'
+  //tags: tags
+  properties: {
+    registrationEnabled: false
+    virtualNetwork: {
+      id: serviceVirtualNetwork.outputs.vNetId
     }
   }
 }
 
 
+
+resource cachePvtEndpointDnsGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
+  parent: cachePrivateEndpoint
+  name: 'cachePrivateDnsZoneGroup'
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-redis-cache-windows-net'
+        properties: {
+          privateDnsZoneId: cachePrivateDnsZone.id
+        }
+      }
+    ]
+  }
+  dependsOn: [
+    privateDnsZoneLinkCache
+  ]
+}
 
 module api './app/api.bicep' = {
   name: 'api'
